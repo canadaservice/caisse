@@ -105,9 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="form-group">
-            <label for="phone">Numéro de Téléphone (6 chiffres après 22901) :</label>
-            <!-- L'indicatif 22901 est maintenant pré-rempli automatiquement -->
-            <input type="text" name="phone" id="phone" value="22901" required pattern="^22901[0-9]{6}$" title="Laissez 22901 et ajoutez vos 6 derniers chiffres.">
+            <label for="phone">Numéro de Téléphone (8 chiffres après 229) :</label>
+            <!-- L'indicatif 229 est pré-rempli grâce à value="229" -->
+            <input type="text" name="phone" id="phone" value="229" required pattern="^229[0-9]{8}$" title="Laissez 229 et ajoutez vos 8 chiffres.">
         </div>
 
         <div class="form-group">
