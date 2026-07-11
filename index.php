@@ -7,7 +7,7 @@ define('SECRET_PASSWORD', '0000');
 // Votre clé pawaPay incluse de manière sécurisée
 $pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
 
-// ADRESSE CORRIGÉE AVEC LA BARRE OBLIQUE FINALE POUR ÉVITER L'ERREUR 405
+// ADRESSE UNIQUE STANDARD DE PRODUCTION POUR LES RETRAITS
 $apiUrl = "https://pawapay.io"; 
 
 $message = "";
@@ -52,13 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         // Envoi de la requête via cURL
-        $ch = curl_init($apiUrl);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             "Authorization: Bearer " . $pawaPayToken,
-            "Content-Type: application/json"
+            "Content-Type: application/json",
+            "Accept: application/json"
         ]);
 
         $response = curl_exec($ch);
