@@ -35,11 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Le numéro saisi est invalide. Il doit faire 10 chiffres (ex: 01xxxxxxxx) ou 13 chiffres avec l'indicatif (22901xxxxxxxx).";
                 $messageType = "error";
             } else {
-                // Génération propre d'un UUID v4 standardisé pour pawaPay
+                // Génération robuste et propre de l'UUID v4 conforme aux standards RFC 4122
                 $data = random_bytes(16);
-                $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // Version 4
-                $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // Variant
-                $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+                $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // version 4
+                $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // variant v4
+                $hex = bin2hex($data);
+                $payoutId = sprintf('%s-%s-%s-%s-%s',
+                    substr($hex, 0, 8),
+                    substr($hex, 8, 4),
+                    substr($hex, 12, 4),
+                    substr($hex, 16, 4),
+                    substr($hex, 20, 12)
+                );
 
                 // Préparation du payload structuré pour l'API v2 de pawaPay
                 $payload = [
@@ -57,16 +64,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "statementDescription" => "Retrait Caisse"
                 ];
 
-                // URL v2 officielle de l'API Sandbox pawaPay (Règle le problème de l'erreur 405)
+                $jsonPayload = json_encode($payload);
+
+                // URL v2 officielle de l'API Sandbox pawaPay (À remplacer par l'URL Live en production)
                 $url = "https://api.sandbox.pawapay.io/v2/payouts"; 
                 
                 $ch = curl_init($url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Authorization: Bearer ' . $token,
-                    'Content-Type: application/json'
+                    'Authorization: Bearer ' . trim($token),
+                    'Content-Type: application/json',
+                    'Content-Length: ' . strlen($jsonPayload)
                 ]);
 
                 $response = curl_exec($ch);
@@ -79,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $messageType = "success";
                 } else {
                     $responseData = json_decode($response, true);
-                    $errorDetail = $responseData['message'] ?? "Vérifiez vos configurations d'API (Token ou Solde insuffisant).";
+                    $errorDetail = $responseData['message'] ?? $responseData['error'] ?? "Vérifiez vos configurations d'API (Token ou permissions Payouts manquantes).";
                     $message = "Échec du décaissement (Code HTTP " . $httpCode . ") : " . $errorDetail;
                     $messageType = "error";
                 }
