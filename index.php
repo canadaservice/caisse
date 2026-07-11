@@ -5,7 +5,7 @@
 define('SECRET_PASSWORD', '2014#Even'); 
 
 // Mettez votre clé pawaPay (Sandbox ou Production) entre les guillemets :
-$pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDk4NTQxNjk0LCJpYXQiOjE3ODI5MjI0OTQsInBtIjoiREFGLFBBRiIsImp0aSI6Ijg2N2NlMDBkLWFlYjMtNDk4Zi05NmY5LTBkZmYwYTc3YzJlMSJ9.CEDu9sZbpr3mgw-6_YmoDiBO8F6Oy594fq2ikyejyxizd3L5884S7uPZcmSBMp0oWf-EasM0tjL38kfMkjOxPg"; 
+$pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
 
 // REMPLACEZ PAR https://pawapay.io QUAND VOUS PASSEZ EN MODE RÉEL
 $apiUrl = "https://pawapay.io"; 
