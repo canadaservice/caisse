@@ -7,6 +7,9 @@ define('SECRET_PASSWORD', '0000');
 // Votre clé pawaPay incluse de manière sécurisée
 $pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
 
+// ADRESSE UNIQUE BLOQUÉE SUR LA VERSION DE VOTRE POSTMAN
+$apiUrl = "https://pawapay.io"; 
+
 $message = "";
 
 // Traitement de l'envoi du formulaire
@@ -32,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Génération de l'heure au format UTC exigé par pawaPay
         $customerTimestamp = gmdate("Y-m-d\TH:i:s\Z");
 
-        // Structure corrigée d'après le retour de l'API (msisdn en minuscules)
+        // Structure exacte validée (msisdn en minuscules d'après l'erreur 400)
         $data = [
             "payoutId" => $payoutId,
             "amount" => (string)$amount,
@@ -48,33 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "statementDescription" => "Payment"
         ];
 
-        // --- TEST AUTOMATIQUE DES DEUX VERSIONS ---
-        $urlsToTest = [
-            "https://pawapay.io",
-            "https://pawapay.io"
-        ];
-        
-        $httpCode = 0;
-        $response = "";
+        // Envoi direct unique
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer " . $pawaPayToken,
+            "Content-Type: application/json"
+        ]);
 
-        foreach ($urlsToTest as $apiUrl) {
-            $ch = curl_init($apiUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                "Authorization: Bearer " . $pawaPayToken,
-                "Content-Type: application/json"
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
-                break;
-            }
-        }
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
         // Analyse du résultat final
         if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
