@@ -14,64 +14,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Nettoyage et récupération des données du formulaire
         $operator = filter_input(INPUT_POST, 'operator', FILTER_SANITIZE_SPECIAL_CHARS);
-        $phone = filter_input(INPUT_POST, 'phone', FILTER_SANITIZE_SPECIAL_CHARS);
+        $rawPhone = filter_input(INPUT_POST, 'phone', FILTER_SANITIZE_SPECIAL_CHARS);
         $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_FLOAT);
 
         // Validation basique des champs
-        if (!$operator || !$phone || !$amount || $amount <= 0) {
+        if (!$operator || !$rawPhone || !$amount || $amount <= 0) {
             $message = "Veuillez remplir correctement tous les champs du formulaire.";
             $messageType = "error";
         } else {
-            // Nettoyage du numéro de téléphone (conserver uniquement les chiffres)
-            $phone = preg_replace('/[^0-9]/', '', $phone);
+            // Conserver uniquement les chiffres du numéro de téléphone
+            $phone = preg_replace('/[^0-9]/', '', $rawPhone);
 
-            // Génération d'un identifiant de transaction unique obligatoire (UUID v4)
-            $cryptoBytes = random_bytes(16);
-            $cryptoBytes[6] = chr(ord($cryptoBytes[6]) & 0x0f | 0x40); // Version 4
-            $cryptoBytes[8] = chr(ord($cryptoBytes[8]) & 0x3f | 0x80); // Variant
-            $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($cryptoBytes), 4));
+            // Gestion automatique des formats Bénin (Nouveau plan à 10/13 chiffres)
+            // Si l'utilisateur saisit 10 chiffres (ex: 01xxxxxxxx), on ajoute l'indicatif pays 229
+            if (strlen($phone) === 10) {
+                $phone = "229" . $phone;
+            }
 
-            // Préparation des données pour l'API pawaPay
-            $payload = [
-                "payoutId" => $payoutId,
-                "amount" => (string)$amount,
-                "currency" => "XOF",
-                "country" => "BEN", 
-                "correspondent" => $operator, // Reçoit 'MTN_BEN' ou 'MOOV_BEN'
-                "recipient" => [
-                    "type" => "MSISDN",
-                    "address" => [
-                        "value" => "+" . $phone // Format international requis (+229XXXXXXXX)
-                    ]
-                ],
-                "statementDescription" => "Retrait Caisse"
-            ];
-
-            // Initialisation de la requête HTTP (URL Sandbox pour vos tests)
-            $url = "https://pawapay.io"; 
-            
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $token,
-                'Content-Type: application/json'
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            // Analyse de la réponse de l'API
-            if ($httpCode === 202) {
-                $message = "Demande de décaissement acceptée ! ID de suivi : " . $payoutId;
-                $messageType = "success";
-            } else {
-                $responseData = json_decode($response, true);
-                $errorDetail = $responseData['message'] ?? "Erreur inconnue";
-                $message = "Échec du décaissement (Code HTTP " . $httpCode . ") : " . $errorDetail;
+            // Validation finale : Le numéro complet doit faire exactement 13 chiffres
+            if (strlen($phone) !== 13 || !str_starts_with($phone, '229')) {
+                $message = "Le numéro saisi est invalide. Il doit faire 10 chiffres (ex: 01xxxxxxxx) ou 13 chiffres avec l'indicatif (22901xxxxxxxx).";
                 $messageType = "error";
+            } else {
+                // Génération d'un identifiant de transaction unique obligatoire (UUID v4)
+                $cryptoBytes = random_bytes(16);
+                $cryptoBytes = chr(ord($cryptoBytes) & 0x0f | 0x40); // Version 4
+                $cryptoBytes = chr(ord($cryptoBytes) & 0x3f | 0x80); // Variant
+                $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($cryptoBytes), 4));
+
+                // Préparation des données pour l'API pawaPay
+                $payload = [
+                    "payoutId" => $payoutId,
+                    "amount" => (string)$amount,
+                    "currency" => "XOF",
+                    "country" => "BEN", 
+                    "correspondent" => $operator, // Reçoit 'MTN_BEN' ou 'MOOV_BEN'
+                    "recipient" => [
+                        "type" => "MSISDN",
+                        "address" => [
+                            "value" => "+" . $phone // Format international complet requis (+22901XXXXXXXX)
+                        ]
+                    ],
+                    "statementDescription" => "Retrait Caisse"
+                ];
+
+                // Initialisation de la requête HTTP (URL Sandbox pour vos tests)
+                $url = "https://pawapay.io"; 
+                
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Authorization: Bearer ' . $token,
+                    'Content-Type: application/json'
+                ]);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                // Analyse de la réponse de l'API
+                if ($httpCode === 202) {
+                    $message = "Demande de décaissement acceptée ! ID de suivi : " . $payoutId;
+                    $messageType = "success";
+                } else {
+                    $responseData = json_decode($response, true);
+                    $errorDetail = $responseData['message'] ?? "Erreur inconnue";
+                    $message = "Échec du décaissement (Code HTTP " . $httpCode . ") : " . $errorDetail;
+                    $messageType = "error";
+                }
             }
         }
     }
@@ -159,6 +171,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .info-text {
+            font-size: 14px;
+            color: #666666;
+            margin-top: 15px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -183,9 +201,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
 
-            <!-- Saisie du numéro de téléphone avec indicatif -->
+            <!-- Saisie du numéro de téléphone (Validation souple HTML, traitement robuste PHP) -->
             <div class="form-group">
-                <input type="text" name="phone" value="229" placeholder="229XXXXXXXX" required pattern="^229[0-9]{8}$" title="Le numéro doit commencer par 229 suivi de 8 chiffres">
+                <input type="text" name="phone" placeholder="Ex: 0142222197 ou 2290142222197" required>
             </div>
 
             <!-- Saisie du montant -->
@@ -197,6 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn-submit">Envoyer</button>
             
         </form>
+
+        <p class="info-text">Les informations sont prêtes à être envoyées au serveur de paiement.</p>
     </div>
 
 </body>
