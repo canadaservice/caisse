@@ -1,91 +1,203 @@
 <?php
+// 1. Configuration et récupération sécurisée du Token Render
+$token = getenv('PAWAPAY_TOKEN') ?: ($_ENV['PAWAPAY_TOKEN'] ?? null);
+
 $message = "";
+$messageType = ""; // 'success' ou 'error'
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
-    $operator = $_POST["operator"] ?? "";
-    $phone = trim($_POST["phone"] ?? "");
-    $amount = trim($_POST["amount"] ?? "");
-
-    if ($phone == "" || $amount == "") {
-        $message = "Veuillez remplir tous les champs.";
+// 2. Traitement du formulaire lors de la soumission (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    if (!$token) {
+        $message = "Configuration système manquante : Le jeton PAWAPAY_TOKEN n'est pas configuré sur Render.";
+        $messageType = "error";
     } else {
-        // Ici, appelez votre backend sécurisé qui communique avec pawaPay.
-        $message = "Les informations sont prêtes à être envoyées au serveur de paiement.";
+        // Nettoyage et récupération des données du formulaire
+        $operator = filter_input(INPUT_POST, 'operator', FILTER_SANITIZE_SPECIAL_CHARS);
+        $phone = filter_input(INPUT_POST, 'phone', FILTER_SANITIZE_SPECIAL_CHARS);
+        $amount = filter_input(INPUT_POST, 'amount', FILTER_VALIDATE_FLOAT);
+
+        // Validation basique des champs
+        if (!$operator || !$phone || !$amount || $amount <= 0) {
+            $message = "Veuillez remplir correctement tous les champs du formulaire.";
+            $messageType = "error";
+        } else {
+            // Nettoyage du numéro de téléphone (conserver uniquement les chiffres)
+            $phone = preg_replace('/[^0-9]/', '', $phone);
+
+            // Génération d'un identifiant de transaction unique obligatoire (UUID v4)
+            $cryptoBytes = random_bytes(16);
+            $cryptoBytes[6] = chr(ord($cryptoBytes[6]) & 0x0f | 0x40); // Version 4
+            $cryptoBytes[8] = chr(ord($cryptoBytes[8]) & 0x3f | 0x80); // Variant
+            $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($cryptoBytes), 4));
+
+            // Préparation des données pour l'API pawaPay
+            $payload = [
+                "payoutId" => $payoutId,
+                "amount" => (string)$amount,
+                "currency" => "XOF",
+                "country" => "BEN", 
+                "correspondent" => $operator, // Reçoit 'MTN_BEN' ou 'MOOV_BEN'
+                "recipient" => [
+                    "type" => "MSISDN",
+                    "address" => [
+                        "value" => "+" . $phone // Format international requis (+229XXXXXXXX)
+                    ]
+                ],
+                "statementDescription" => "Retrait Caisse"
+            ];
+
+            // Initialisation de la requête HTTP (URL Sandbox pour vos tests)
+            $url = "https://pawapay.io"; 
+            
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json'
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            // Analyse de la réponse de l'API
+            if ($httpCode === 202) {
+                $message = "Demande de décaissement acceptée ! ID de suivi : " . $payoutId;
+                $messageType = "success";
+            } else {
+                $responseData = json_decode($response, true);
+                $errorDetail = $responseData['message'] ?? "Erreur inconnue";
+                $message = "Échec du décaissement (Code HTTP " . $httpCode . ") : " . $errorDetail;
+                $messageType = "error";
+            }
+        }
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Décaissement</title>
-<style>
-body{
-font-family:Arial;
-background:#f5f5f5;
-}
-.box{
-width:360px;
-margin:50px auto;
-background:#fff;
-padding:20px;
-border-radius:8px;
-box-shadow:0 0 10px rgba(0,0,0,.15);
-}
-input,select,button{
-width:100%;
-padding:10px;
-margin-top:10px;
-}
-button{
-background:#007bff;
-color:#fff;
-border:none;
-cursor:pointer;
-}
-.msg{
-margin-top:15px;
-font-weight:bold;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Décaissement - Caisse Retrait</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 30px;
+            color: #000000;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        select, input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus {
+            border-color: #007bff;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+        .btn-submit:hover {
+            background-color: #0056b3;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
 </head>
 <body>
 
-<div class="box">
+    <div class="card">
+        <h1>Décaissement</h1>
 
-<h2>Décaissement</h2>
+        <!-- Affichage des messages de retour API -->
+        <?php if (!empty($message)): ?>
+            <div class="alert alert-<?php echo $messageType; ?>">
+                <?php echo htmlspecialchars($message); ?>
+            </div>
+        <?php endif; ?>
 
-<form method="post">
+        <form method="POST" action="">
+            
+            <!-- Sélection de l'opérateur -->
+            <div class="form-group">
+                <select name="operator" required>
+                    <option value="MTN_BEN">MTN Bénin</option>
+                    <option value="MOOV_BEN">Moov Bénin</option>
+                </select>
+            </div>
 
-<select name="operator">
-<option value="MTN_MOMO_BEN">MTN Bénin</option>
-<option value="MOOV_BEN">Moov Bénin</option>
-</select>
+            <!-- Saisie du numéro de téléphone avec indicatif -->
+            <div class="form-group">
+                <input type="text" name="phone" value="229" placeholder="229XXXXXXXX" required pattern="^229[0-9]{8}$" title="Le numéro doit commencer par 229 suivi de 8 chiffres">
+            </div>
 
-<input
-type="text"
-name="phone"
-placeholder="229XXXXXXXX"
-required>
+            <!-- Saisie du montant -->
+            <div class="form-group">
+                <input type="number" name="amount" step="any" placeholder="Montant XOF" required min="1">
+            </div>
 
-<input
-type="number"
-name="amount"
-placeholder="Montant XOF"
-required>
-
-<button type="submit">
-Envoyer
-</button>
-
-</form>
-
-<div class="msg">
-<?= htmlspecialchars($message) ?>
-</div>
-
-</div>
+            <!-- Bouton d'action -->
+            <button type="submit" class="btn-submit">Envoyer</button>
+            
+        </form>
+    </div>
 
 </body>
 </html>
