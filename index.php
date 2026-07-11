@@ -7,7 +7,7 @@ define('SECRET_PASSWORD', '2014#Even');
 // Mettez votre clé pawaPay (Sandbox ou Production) entre les guillemets :
 $pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
 
-// REMPLACEZ PAR https://pawapay.io QUAND VOUS PASSEZ EN MODE RÉEL
+// ADRESSE CORRIGÉE D'APRÈS POSTMAN (Laissez celle-ci pour le mode réel)
 $apiUrl = "https://pawapay.io"; 
 
 $message = "";
@@ -32,18 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
 
-        // Préparation du dictionnaire de données pour l'API pawaPay
+        // Génération automatique de l'heure obligatoire au format UTC exigé par pawaPay
+        $customerTimestamp = gmdate("Y-m-d\TH:i:s\Z");
+
+        // Structure exacte validée par votre Postman
         $data = [
             "payoutId" => $payoutId,
             "amount" => (string)$amount,
             "currency" => "XOF",
-            "country" => "BEN",
             "correspondent" => $operator,
             "recipient" => [
                 "type" => "MSISDN",
-                "address" => $phone
+                "address" => [
+                    "value" => $phone
+                ]
             ],
-            "statementDescription" => "Retrait CanadaService"
+            "customerTimestamp" => $customerTimestamp,
+            "statementDescription" => "Payment"
         ];
 
         // Envoi de la requête via cURL
@@ -62,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Analyse de la réponse du serveur pawaPay
         if ($httpCode === 200 || $httpCode === 201) {
-            $message = "<div style='padding:15px; border-radius:4px; margin-bottom:15px; background:#d4edda; color:#155724; border:1px solid #c3e6cb; text-align:left;'><h3>Succès !</h3>La demande de retrait a été validée avec succès vers le numéro " . htmlspecialchars($phone) . ".<br>ID Transaction : " . $payoutId . "</div>";
+            $message = "<div style='padding:15px; border-radius:4px; margin-bottom:15px; background:#d4edda; color:#155724; border:1px solid #c3e6cb; text-align:left;'><h3>Succès !</h3>La demande de retrait a été validée avec succès.<br>ID Transaction : " . $payoutId . "</div>";
         } else {
             $resData = json_decode($response, true);
             $errDetail = isset($resData['message']) ? $resData['message'] : $response;
@@ -75,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Interface de Retrait Secrétisé - CanadaService</title>
+    <title>Interface de Retrait Sécurisée - CanadaService</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 50px; text-align: center; }
         .form-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; width: 350px; text-align: left; }
@@ -99,15 +104,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="form-group">
             <label for="operator">Opérateur Mobile :</label>
             <select name="operator" id="operator" required>
-                <option value="MTN_BEN">MTN Bénin</option>
+                <!-- Noms de correspondants corrigés d'après l'API Bénin -->
+                <option value="MTN_MOMO_BEN">MTN Bénin</option>
                 <option value="MOOV_BEN">Moov Bénin</option>
             </select>
         </div>
 
         <div class="form-group">
             <label for="phone">Numéro de Téléphone (Format Bénin 13 chiffres) :</label>
-            <!-- L'affichage commence directement par 22901 -->
-            <input type="text" name="phone" id="phone" value="22901" required pattern="^22901[0-9]{8}$" title="Laissez 22901 et ajoutez les 8 chiffres de votre numéro de téléphone actuel.">
+            <input type="text" name="phone" id="phone" value="22901" required pattern="^22901[0-9]{8}$" title="Laissez 22901 et ajoutez les 8 chiffres restants.">
         </div>
 
         <div class="form-group">
