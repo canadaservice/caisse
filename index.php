@@ -7,7 +7,7 @@ define('SECRET_PASSWORD', '0000');
 // Votre clé pawaPay incluse de manière sécurisée
 $pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
 
-// ADRESSE UNIQUE BLOQUÉE SUR LA VERSION DE VOTRE POSTMAN
+// ADRESSE VALIDÉE DE L'API POUR LES RETRAITS
 $apiUrl = "https://pawapay.io"; 
 
 $message = "";
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "statementDescription" => "Payment"
         ];
 
-        // Envoi direct unique
+        // Envoi de la requête via cURL
         $ch = curl_init($apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
