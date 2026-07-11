@@ -2,13 +2,10 @@
 // =================================================================
 // CONFIGURATION DE SÉCURITÉ ET ACCÈS API PAWAPAY
 // =================================================================
-define('SECRET_PASSWORD', '2014#Even'); 
+define('SECRET_PASSWORD', '0000'); 
 
 // Votre clé pawaPay incluse de manière sécurisée
 $pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDkzMjUyMTI3LCJpYXQiOjE3Nzc2MzI5MjcsInBtIjoiREFGLFBBRiIsImp0aSI6IjBhZDY0ZGZjLTA0NWMtNGE1NS04YjI3LThhZDdmNWQ1YjQyMSJ9.S5bEkSU7TzgfYGZbOIwXj55g-XcWqpzv2as9jbDmMl8sNgPz8GLJxWbGrJVrZmyaJ_bSch5MGb6FlVoUE3HtJg"; 
-
-// ADRESSE URL CORRIGÉE EXACTEMENT SELON VOTRE CONFIGURATION POSTMAN
-$apiUrl = "https://pawapay.io"; 
 
 $message = "";
 
@@ -32,10 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
 
-        // Génération automatique de l'heure obligatoire au format UTC exigé par pawaPay
+        // Génération de l'heure au format UTC exigé par pawaPay
         $customerTimestamp = gmdate("Y-m-d\TH:i:s\Z");
 
-        // Structure exacte validée par votre Postman
+        // Structure de données validée par votre Postman
         $data = [
             "payoutId" => $payoutId,
             "amount" => (string)$amount,
@@ -51,22 +48,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "statementDescription" => "Payment"
         ];
 
-        // Envoi de la requête via cURL
-        $ch = curl_init($apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Authorization: Bearer " . $pawaPayToken,
-            "Content-Type: application/json"
-        ]);
+        // --- SYSTÈME DE DOUBLE LIEN AUTOMATIQUE (TEST V1 ET V2) ---
+        $urlsToTest = [
+            "https://pawapay.io",
+            "https://api.pawapay.io/v2/payouts"
+        ];
+        
+        $httpCode = 0;
+        $response = "";
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        foreach ($urlsToTest as $apiUrl) {
+            $ch = curl_init($apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer " . $pawaPayToken,
+                "Content-Type: application/json"
+            ]);
 
-        // Analyse de la réponse du serveur pawaPay
-        if ($httpCode === 200 || $httpCode === 201) {
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            // Si l'adresse fonctionne (Code 200, 201 ou 202), on arrête le test
+            if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
+                break;
+            }
+        }
+
+        // Analyse du résultat final
+        if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
             $message = "<div style='padding:15px; border-radius:4px; margin-bottom:15px; background:#d4edda; color:#155724; border:1px solid #c3e6cb; text-align:left;'><h3>Succès !</h3>La demande de retrait a été validée avec succès.<br>ID Transaction : " . $payoutId . "</div>";
         } else {
             $resData = json_decode($response, true);
@@ -96,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="form-container">
     <h2>Demande de Décaissement</h2>
     
-    <!-- Zone d'affichage des messages d'erreur ou de succès -->
     <?php if (!empty($message)) echo $message; ?>
     
     <form action="index.php" method="POST">
