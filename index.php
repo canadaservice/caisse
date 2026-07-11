@@ -25,23 +25,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Conserver uniquement les chiffres du numéro de téléphone
             $phone = preg_replace('/[^0-9]/', '', $rawPhone);
 
-            // Gestion automatique des formats Bénin (Nouveau plan à 10/13 chiffres)
+            // Gestion automatique des formats Bénin (Nouveau plan à 10 chiffres régionaux)
             if (strlen($phone) === 10) {
                 $phone = "229" . $phone;
             }
 
-            // Validation finale du numéro
+            // Validation finale du numéro (doit faire 13 chiffres avec l'indicatif 229)
             if (strlen($phone) !== 13 || !str_starts_with($phone, '229')) {
                 $message = "Le numéro saisi est invalide. Il doit faire 10 chiffres (ex: 01xxxxxxxx) ou 13 chiffres avec l'indicatif (22901xxxxxxxx).";
                 $messageType = "error";
             } else {
-                // Génération fiable et robuste d'un identifiant unique UUID v4 compatible PHP 8.x
+                // Génération propre d'un UUID v4 standardisé pour pawaPay
                 $data = random_bytes(16);
                 $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // Version 4
                 $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // Variant
                 $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 
-                // Préparation des données pour l'API pawaPay
+                // Préparation du payload structuré pour l'API v2 de pawaPay
                 $payload = [
                     "payoutId" => $payoutId,
                     "amount" => (string)$amount,
@@ -57,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "statementDescription" => "Retrait Caisse"
                 ];
 
-                // Initialisation de la requête HTTP (URL Sandbox)
-                $url = "https://pawapay.io"; 
+                // URL v2 officielle de l'API Sandbox pawaPay (Règle le problème de l'erreur 405)
+                $url = "https://api.sandbox.pawapay.io/v2/payouts"; 
                 
                 $ch = curl_init($url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -74,12 +74,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 curl_close($ch);
 
                 // Analyse de la réponse de l'API
-                if ($httpCode === 202) {
+                if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
                     $message = "Demande de décaissement acceptée ! ID de suivi : " . $payoutId;
                     $messageType = "success";
                 } else {
                     $responseData = json_decode($response, true);
-                    $errorDetail = $responseData['message'] ?? "Erreur inconnue";
+                    $errorDetail = $responseData['message'] ?? "Vérifiez vos configurations d'API (Token ou Solde insuffisant).";
                     $message = "Échec du décaissement (Code HTTP " . $httpCode . ") : " . $errorDetail;
                     $messageType = "error";
                 }
