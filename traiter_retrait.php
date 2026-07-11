@@ -1,9 +1,9 @@
 <?php
 // 1. Définir un mot de passe fort pour protéger l'accès à ce script de retrait
-define('SECRET_PASSWORD', 'VOTRE_MOT_DE_PASSE_CONFIDENTIEL_ICI'); 
+define('SECRET_PASSWORD', '2014#Even'); 
 
 // 2. Vos accès pawaPay
-$pawaPayToken = "VOTRE_CLE_API_PAWAPAY"; 
+$pawaPayToken = "eyJraWQiOiIxIiwiYWxnIjoiRVMyNTYifQ.eyJ0dCI6IkFBVCIsInN1YiI6IjI4NzMiLCJtYXYiOiIxIiwiZXhwIjoyMDk4NTQxNjk0LCJpYXQiOjE3ODI5MjI0OTQsInBtIjoiREFGLFBBRiIsImp0aSI6Ijg2N2NlMDBkLWFlYjMtNDk4Zi05NmY5LTBkZmYwYTc3YzJlMSJ9.CEDu9sZbpr3mgw-6_YmoDiBO8F6Oy594fq2ikyejyxizd3L5884S7uPZcmSBMp0oWf-EasM0tjL38kfMkjOxPg"; 
 $apiUrl = "https://pawapay.io"; // Changez par api.sandbox.pawapay.io pour vos tests
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
