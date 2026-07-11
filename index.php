@@ -32,14 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Génération de l'heure au format UTC exigé par pawaPay
         $customerTimestamp = gmdate("Y-m-d\TH:i:s\Z");
 
-        // Structure de données validée par votre Postman
+        // Structure corrigée d'après le retour de l'API (msisdn en minuscules)
         $data = [
             "payoutId" => $payoutId,
             "amount" => (string)$amount,
             "currency" => "XOF",
             "correspondent" => $operator,
             "recipient" => [
-                "type" => "MSISDN",
+                "type" => "msisdn",
                 "address" => [
                     "value" => $phone
                 ]
@@ -48,10 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "statementDescription" => "Payment"
         ];
 
-        // --- SYSTÈME DE DOUBLE LIEN AUTOMATIQUE (TEST V1 ET V2) ---
+        // --- TEST AUTOMATIQUE DES DEUX VERSIONS ---
         $urlsToTest = [
             "https://pawapay.io",
-            "https://api.pawapay.io/v2/payouts"
+            "https://pawapay.io"
         ];
         
         $httpCode = 0;
@@ -71,7 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
-            // Si l'adresse fonctionne (Code 200, 201 ou 202), on arrête le test
             if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
                 break;
             }
