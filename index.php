@@ -26,21 +26,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $phone = preg_replace('/[^0-9]/', '', $rawPhone);
 
             // Gestion automatique des formats Bénin (Nouveau plan à 10/13 chiffres)
-            // Si l'utilisateur saisit 10 chiffres (ex: 01xxxxxxxx), on ajoute l'indicatif pays 229
             if (strlen($phone) === 10) {
                 $phone = "229" . $phone;
             }
 
-            // Validation finale : Le numéro complet doit faire exactement 13 chiffres
+            // Validation finale du numéro
             if (strlen($phone) !== 13 || !str_starts_with($phone, '229')) {
                 $message = "Le numéro saisi est invalide. Il doit faire 10 chiffres (ex: 01xxxxxxxx) ou 13 chiffres avec l'indicatif (22901xxxxxxxx).";
                 $messageType = "error";
             } else {
-                // Génération d'un identifiant de transaction unique obligatoire (UUID v4)
-                $cryptoBytes = random_bytes(16);
-                $cryptoBytes = chr(ord($cryptoBytes) & 0x0f | 0x40); // Version 4
-                $cryptoBytes = chr(ord($cryptoBytes) & 0x3f | 0x80); // Variant
-                $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($cryptoBytes), 4));
+                // Génération fiable et robuste d'un identifiant unique UUID v4 compatible PHP 8.x
+                $data = random_bytes(16);
+                $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // Version 4
+                $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // Variant
+                $payoutId = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 
                 // Préparation des données pour l'API pawaPay
                 $payload = [
@@ -48,17 +47,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "amount" => (string)$amount,
                     "currency" => "XOF",
                     "country" => "BEN", 
-                    "correspondent" => $operator, // Reçoit 'MTN_BEN' ou 'MOOV_BEN'
+                    "correspondent" => $operator, 
                     "recipient" => [
                         "type" => "MSISDN",
                         "address" => [
-                            "value" => "+" . $phone // Format international complet requis (+22901XXXXXXXX)
+                            "value" => "+" . $phone
                         ]
                     ],
                     "statementDescription" => "Retrait Caisse"
                 ];
 
-                // Initialisation de la requête HTTP (URL Sandbox pour vos tests)
+                // Initialisation de la requête HTTP (URL Sandbox)
                 $url = "https://pawapay.io"; 
                 
                 $ch = curl_init($url);
@@ -193,7 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" action="">
             
-            <!-- Sélection de l'opérateur -->
             <div class="form-group">
                 <select name="operator" required>
                     <option value="MTN_BEN">MTN Bénin</option>
@@ -201,17 +199,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
 
-            <!-- Saisie du numéro de téléphone (Validation souple HTML, traitement robuste PHP) -->
             <div class="form-group">
                 <input type="text" name="phone" placeholder="Ex: 0142222197 ou 2290142222197" required>
             </div>
 
-            <!-- Saisie du montant -->
             <div class="form-group">
                 <input type="number" name="amount" step="any" placeholder="Montant XOF" required min="1">
             </div>
 
-            <!-- Bouton d'action -->
             <button type="submit" class="btn-submit">Envoyer</button>
             
         </form>
