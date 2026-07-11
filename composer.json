@@ -1,0 +1,8 @@
+{
+  "name": "canadaservice/caisse",
+  "description": "Application PHP",
+  "require": {},
+  "scripts": {
+    "start": "php -S 0.0.0.0:$PORT"
+  }
+}
